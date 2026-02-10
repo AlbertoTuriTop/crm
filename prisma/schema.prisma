@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  company   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deals     Deal[]
+}
+
+model FunnelColumn {
+  id    String @id @default(cuid())
+  name  String
+  order Int
+  deals Deal[]
+}
+
+model Deal {
+  id        String       @id @default(cuid())
+  title     String
+  valueEur  Int
+  contactId String?
+  columnId  String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  contact   Contact?     @relation(fields: [contactId], references: [id])
+  column    FunnelColumn @relation(fields: [columnId], references: [id])
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  content    String
+  createdAt  DateTime @default(now())
+}
