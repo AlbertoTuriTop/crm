@@ -15,12 +15,6 @@ const providers =
       ]
     : [];
 
-if (providers.length === 0) {
-  console.warn(
-    '[auth] Google OAuth no está configurado (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET).',
-  );
-}
-
 export const authOptions: NextAuthOptions = {
   providers,
   secret: process.env.NEXTAUTH_SECRET ?? 'dev-insecure-secret-change-me',

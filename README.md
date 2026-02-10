@@ -2,7 +2,7 @@
 
 CRM full-stack con arquitectura hexagonal:
 - Next.js App Router + TypeScript
-- Auth.js/NextAuth con Google OAuth y restricción por email (`aflogon@gmail.com`)
+- Auth.js/NextAuth integrado en código (actualmente desactivado en UI)
 - Prisma + SQLite
 - Bootstrap
 - Tests: Jest + RTL + BDD (jest-cucumber)
@@ -11,17 +11,13 @@ CRM full-stack con arquitectura hexagonal:
 
 ## Setup
 1. `cp .env.example .env`
-2. Configura variables OAuth de Google.
+2. Configura variables de entorno.
 3. `npm install`
 4. `npx prisma migrate dev`
 5. `npm run dev`
 
 ## Variables de entorno
 Ver `.env.example`.
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `NEXTAUTH_URL`
-- `NEXTAUTH_SECRET`
 - `DATABASE_URL`
 
 ## Scripts
@@ -35,9 +31,9 @@ Ver `.env.example`.
 - `npm run format`
 - `npm run typecheck`
 
-## Google OAuth
-Crea credenciales OAuth Web App en Google Cloud y añade callback:
-`http://localhost:3000/api/auth/callback/google`
+## Login
+Actualmente el acceso está habilitado sin autenticación para facilitar despliegues y pruebas.
+La ruta `/login` ofrece acceso manual al CRM sin requerir OAuth.
 
 ## Hooks pre-commit
 Se ejecutan automáticamente:
@@ -46,11 +42,6 @@ Se ejecutan automáticamente:
 - `npm run typecheck`
 
 
-## Troubleshooting login Google
-Si en consola aparece `CLIENT_FETCH_ERROR` o `Configuration`, valida:
-- `NEXTAUTH_SECRET` definido en el entorno de deploy
-- `NEXTAUTH_URL` con la URL pública exacta (ej. Render/Vercel)
-- `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` válidos
-- Callback autorizado en Google: `<NEXTAUTH_URL>/api/auth/callback/google`
-
-Si faltan credenciales de Google, la pantalla `/login` mostrará aviso y deshabilitará el botón para evitar errores 500 silenciosos.
+## Nota sobre Google OAuth
+La configuración de NextAuth y Google se mantiene en el repositorio para reactivarla cuando se
+necesite, pero no forma parte del flujo de inicio de sesión actual.
