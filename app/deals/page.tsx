@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, DragEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Container, Form, Row } from 'react-bootstrap';
 
 type FunnelColumn = { id: string; name: string; order: number };
@@ -70,16 +70,39 @@ export default function DealsPage() {
   const [columns, setColumns] = useState<FunnelColumn[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
-  const load = async () => {
-    setColumns(await (await fetch('/api/funnel/columns')).json());
-    setDeals(await (await fetch('/api/deals')).json());
-  };
+  const loadArray = useCallback(async <T,>(url: string): Promise<T[]> => {
+    const response = await fetch(url);
+    const payload: unknown = await response.json();
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${url}`);
+    }
+
+    return Array.isArray(payload) ? (payload as T[]) : [];
+  }, []);
+
+  const load = useCallback(async () => {
+    try {
+      setError('');
+      const [loadedColumns, loadedDeals] = await Promise.all([
+        loadArray<FunnelColumn>('/api/funnel/columns'),
+        loadArray<Deal>('/api/deals'),
+      ]);
+      setColumns(loadedColumns);
+      setDeals(loadedDeals);
+    } catch {
+      setColumns([]);
+      setDeals([]);
+      setError('No se pudo cargar el tablero. Revisa la conexión o el servidor.');
+    }
+  }, [loadArray]);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const dealsByColumn = useMemo(() => {
     const map = new Map<string, Deal[]>();
@@ -148,6 +171,7 @@ export default function DealsPage() {
   return (
     <Container className="py-4">
       <h1>Deals</h1>
+      {error && <p className="text-danger">{error}</p>}
       <Form className="d-flex gap-2 mb-3">
         <Form.Control
           placeholder="Nueva columna"

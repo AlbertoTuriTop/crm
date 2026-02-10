@@ -9,7 +9,22 @@ export default function ContactsPage() {
   const [error, setError] = useState('');
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '' });
 
-  const load = async () => setContacts(await (await fetch('/api/contacts')).json());
+  const load = async () => {
+    try {
+      const response = await fetch('/api/contacts');
+      const payload: unknown = await response.json();
+
+      if (!response.ok) {
+        throw new Error('contacts-load-failed');
+      }
+
+      setContacts(Array.isArray(payload) ? (payload as Contact[]) : []);
+      setError('');
+    } catch {
+      setContacts([]);
+      setError('No se pudieron cargar los contactos. Revisa la conexión o el servidor.');
+    }
+  };
   useEffect(() => {
     load();
   }, []);
