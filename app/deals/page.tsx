@@ -1,23 +1,76 @@
 'use client';
 
-import { ChangeEvent, useEffect, useState } from 'react';
+import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Container, Form, Row } from 'react-bootstrap';
-import {
-  DragDropContext,
-  Draggable,
-  DraggableProvided,
-  DropResult,
-  Droppable,
-  DroppableProvided,
-} from 'react-beautiful-dnd';
 
 type FunnelColumn = { id: string; name: string; order: number };
 type Deal = { id: string; title: string; valueEur: number; columnId: string };
+
+function DealCard({
+  deal,
+  onDragStart,
+}: {
+  deal: Deal;
+  onDragStart: (event: DragEvent<HTMLElement>, dealId: string) => void;
+}) {
+  return (
+    <Card
+      draggable
+      onDragStart={(event) => onDragStart(event, deal.id)}
+      className="mb-2"
+      style={{ cursor: 'grab' }}
+    >
+      <Card.Body>
+        {deal.title} - €{deal.valueEur}
+      </Card.Body>
+    </Card>
+  );
+}
+
+function ColumnDropZone({
+  column,
+  deals,
+  isOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragStart,
+}: {
+  column: FunnelColumn;
+  deals: Deal[];
+  isOver: boolean;
+  onDragOver: (event: DragEvent<HTMLElement>, columnId: string) => void;
+  onDragLeave: () => void;
+  onDrop: (event: DragEvent<HTMLElement>, columnId: string) => void;
+  onDragStart: (event: DragEvent<HTMLElement>, dealId: string) => void;
+}) {
+  return (
+    <Card>
+      <Card.Header>{column.name}</Card.Header>
+      <Card.Body
+        onDragOver={(event) => onDragOver(event, column.id)}
+        onDragLeave={onDragLeave}
+        onDrop={(event) => onDrop(event, column.id)}
+        style={{
+          minHeight: 200,
+          backgroundColor: isOver ? '#f5faff' : undefined,
+          borderRadius: 8,
+          transition: 'background-color 0.2s ease',
+        }}
+      >
+        {deals.map((deal) => (
+          <DealCard key={deal.id} deal={deal} onDragStart={onDragStart} />
+        ))}
+      </Card.Body>
+    </Card>
+  );
+}
 
 export default function DealsPage() {
   const [columns, setColumns] = useState<FunnelColumn[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [name, setName] = useState('');
+  const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
 
   const load = async () => {
     setColumns(await (await fetch('/api/funnel/columns')).json());
@@ -28,15 +81,52 @@ export default function DealsPage() {
     load();
   }, []);
 
-  const onDragEnd = async (result: DropResult) => {
-    if (!result.destination) return;
+  const dealsByColumn = useMemo(() => {
+    const map = new Map<string, Deal[]>();
+    for (const column of columns) map.set(column.id, []);
+    for (const deal of deals) {
+      const bucket = map.get(deal.columnId);
+      if (bucket) bucket.push(deal);
+    }
+    return map;
+  }, [columns, deals]);
 
-    await fetch(`/api/deals/${result.draggableId}/move`, {
+  const moveDeal = async (dealId: string, destinationColumnId: string) => {
+    const draggedDeal = deals.find((deal) => deal.id === dealId);
+    if (!draggedDeal || draggedDeal.columnId === destinationColumnId) return;
+
+    await fetch(`/api/deals/${dealId}/move`, {
       method: 'PUT',
-      body: JSON.stringify({ columnId: result.destination.droppableId }),
+      body: JSON.stringify({ columnId: destinationColumnId }),
     });
 
     await load();
+  };
+
+  const handleDragStart = (event: DragEvent<HTMLElement>, dealId: string) => {
+    event.dataTransfer.setData('text/deal-id', dealId);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLElement>, columnId: string) => {
+    event.preventDefault();
+    setDragOverColumnId(columnId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverColumnId(null);
+  };
+
+  const handleDrop = async (
+    event: DragEvent<HTMLElement>,
+    destinationColumnId: string,
+  ) => {
+    event.preventDefault();
+    const dealId = event.dataTransfer.getData('text/deal-id');
+    setDragOverColumnId(null);
+
+    if (!dealId) return;
+    await moveDeal(dealId, destinationColumnId);
   };
 
   const handleColumnNameChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -44,9 +134,11 @@ export default function DealsPage() {
   };
 
   const handleAddColumn = async () => {
+    if (!name.trim()) return;
+
     await fetch('/api/funnel/columns', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name: name.trim() }),
     });
 
     setName('');
@@ -67,44 +159,21 @@ export default function DealsPage() {
         </Button>
       </Form>
 
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Row>
-          {columns.map((column) => (
-            <Col key={column.id}>
-              <Card>
-                <Card.Header>{column.name}</Card.Header>
-                <Card.Body>
-                  <Droppable droppableId={column.id}>
-                    {(provided: DroppableProvided) => (
-                      <div ref={provided.innerRef} {...provided.droppableProps}>
-                        {deals
-                          .filter((deal) => deal.columnId === column.id)
-                          .map((deal, index) => (
-                            <Draggable key={deal.id} draggableId={deal.id} index={index}>
-                              {(draggableProvided: DraggableProvided) => (
-                                <Card
-                                  ref={draggableProvided.innerRef}
-                                  {...draggableProvided.draggableProps}
-                                  {...draggableProvided.dragHandleProps}
-                                  className="mb-2"
-                                >
-                                  <Card.Body>
-                                    {deal.title} - €{deal.valueEur}
-                                  </Card.Body>
-                                </Card>
-                              )}
-                            </Draggable>
-                          ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </DragDropContext>
+      <Row>
+        {columns.map((column) => (
+          <Col key={column.id}>
+            <ColumnDropZone
+              column={column}
+              deals={dealsByColumn.get(column.id) ?? []}
+              isOver={dragOverColumnId === column.id}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragStart={handleDragStart}
+            />
+          </Col>
+        ))}
+      </Row>
     </Container>
   );
 }
