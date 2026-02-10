@@ -44,3 +44,13 @@ Se ejecutan automáticamente:
 - `npm run lint`
 - `npm run test`
 - `npm run typecheck`
+
+
+## Troubleshooting login Google
+Si en consola aparece `CLIENT_FETCH_ERROR` o `Configuration`, valida:
+- `NEXTAUTH_SECRET` definido en el entorno de deploy
+- `NEXTAUTH_URL` con la URL pública exacta (ej. Render/Vercel)
+- `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` válidos
+- Callback autorizado en Google: `<NEXTAUTH_URL>/api/auth/callback/google`
+
+Si faltan credenciales de Google, la pantalla `/login` mostrará aviso y deshabilitará el botón para evitar errores 500 silenciosos.
